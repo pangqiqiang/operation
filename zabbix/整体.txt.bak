@@ -1,0 +1,4 @@
+所有模板监控项配置路径：
+/home/work/app/zabbix/etc/zabbix_agentd.conf.d/custom.conf
+所有监控脚本路径：
+/home/work/app/zabbix/bin/scripts/

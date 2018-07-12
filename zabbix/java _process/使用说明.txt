@@ -1,0 +1,8 @@
+#1. 基于jps进行java进程发现，目前只做war，jar发布程序发现
+#2. 监控基于jdk1.8版本进行数据搜集
+#3. 利用jstat命令行进行数据提取，鉴于程序进程运行于不同容器配置，未采用jmx+gateway
+#4. 测试9个实例，2min粒度下cpu最大占用率12%
+#5. 添加监控项
+##################java process###########################
+UserParameter=zabbix.java.discovery,/bin/bash /home/work/app/zabbix/bin/scripts/zabbix_discover_java_process.sh
+UserParameter=java.status[*], /bin/bash /home/work/app/zabbix/bin/scripts/java_process_status.sh $1 $2 $3

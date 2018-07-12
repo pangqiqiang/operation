@@ -1,0 +1,17 @@
+#1. 基于ss进行mongo端口发现监控
+#2. mongo监控用户认证
+use admin
+
+db.createUser(
+    {
+      user: "clustermonitor",
+      pwd: "password",
+      roles: [             
+         { role: "monitor", db: "admin" }
+      ]
+    }
+);
+
+#3. 定义监控项目
+UserParameter=zabbix.discovery.mongo,/home/work/app/zabbix/bin/scripts/zabbix_discover_mongo.sh 
+UserParameter=mongo.status[*],/bin/bash /home/work/app/zabbix/bin/scripts/mongo_status.sh $1 $2 $3 $4

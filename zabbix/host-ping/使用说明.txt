@@ -1,0 +1,2 @@
+#1. 基于fping，zabbix server主机端需要安装fping工具且配置zabbix_server.conf配置文件
+FpingLocation=/usr/local/fping/sbin/fping

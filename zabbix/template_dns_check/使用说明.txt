@@ -1,0 +1,6 @@
+1.采用了dig命令解析，centos下需安装
+yum -y install bind-utils
+2.在监控发现脚本同级目录下创建那么server和ip对用逗号分隔
+3.添加监控项目；
+UserParameter=zabbix.dns.discover,/bin/bash /home/work/app/zabbix/bin/scripts/zabbix_discover_nameservers.sh
+UserParameter=dns.check[*],/bin/bash /home/work/app/zabbix/bin/scripts/check_dns.sh $1 $2

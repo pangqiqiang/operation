@@ -1,0 +1,13 @@
+#1. 用于监控redis状态及slave状态
+#2. 利用ss进行自动端口发现，设置zabbix用户对于ss命令具有sodu
+
+work ALL= NOPASSWD: /usr/sbin/ss
+Defaults:work  !requiretty
+#3. 配置自定义监控项
+##################Redis################################
+UserParameter=redis.discovery,sh /home/work/app/zabbix/bin/scripts/zabbix_discover_redis.sh
+UserParameter=redis.slave.discovery,sh /home/work/app/zabbix/bin/scripts/zabbix_discover_redis_slave.sh
+UserParameter=redis.perf[*],sh /home/work/app/zabbix/bin/scripts/redis_status.sh perf $1 $2
+UserParameter=redis.ping[*],sh /home/work/app/zabbix/bin/scripts/redis_status.sh ping $1
+UserParameter=redis.dbsize[*],sh /home/work/app/zabbix/bin/scripts/redis_status.sh dbsize $1
+UserParameter=redis.conf[*],sh /home/work/app/zabbix/bin/scripts/redis_status.sh conf $1

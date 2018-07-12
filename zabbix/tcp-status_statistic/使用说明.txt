@@ -1,0 +1,6 @@
+#1. 利用了ss命令进行统计，相较于netstat快速，保证zabbix用户对于ss命令具有sudoer，设置如下：
+work ALL= NOPASSWD: /usr/sbin/ss
+Defaults:work  !requiretty
+#2. 添加监控项目
+#tcp status #############
+UserParameter=tcp.status[*],sudo ss -to state "$1" | wc -l

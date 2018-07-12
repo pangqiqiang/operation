@@ -1,0 +1,16 @@
+#1. 用于监控mysql状态和及主从同步状态
+#2. 利用ss进行mysqld端口发现，利用slave status进行slave状态发现
+#3. 建立授权监控账号
+GRANT USAGE,PROCESS, REPLICATION CLIENT, REPLICATION SLAVE ON *.* TO 'monitor'@'127.0.0.1' identified by 'zabbix';flush privileges;
+#4. 目前版本禁止命令行直接明码登陆
+在zabbix监控用户家目录下建立.my.cnf文件进行配置，设置权限400
+[client]
+user=xxxxx
+password=xxxxxx
+#5. 添加监控项
+#####################mysql################################
+UserParameter=zabbix.mysql.discovery,sh /home/work/app/zabbix/bin/scripts/zabbix_discover_mysqld.sh
+UserParameter=zabbix.mysql.slave.discovery,sh /home/work/app/zabbix/bin/scripts/zabbix_discover_mysql_slave.sh
+UserParameter=mysql.status[*],sh /home/work/app/zabbix/bin/scripts/mysql_status.sh "$1" "$2"
+UserParameter=mysql.slave[*],sh /home/work/app/zabbix/bin/scripts/mysql_slave_status.sh "$1" "$2"
+UserParameter=mysql.lock[*],sh /home/work/app/zabbix/bin/scripts/mysql_lock.sh "$1" "$2"

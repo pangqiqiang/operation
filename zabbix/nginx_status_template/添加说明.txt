@@ -1,0 +1,4 @@
+1.添加模板级别宏变量{$NGINX_STATUS_URL}可以用主机宏变量复写
+2.添加自定义监控项
+################nginx#######################
+UserParameter=nginx[*], /bin/bash /home/work/app/zabbix/bin/scripts/nginx_status_monitor.sh  $1 $2

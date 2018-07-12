@@ -1,0 +1,5 @@
+#1.目前是基于iostat进行的监控，保证Sysstat监控工具安装
+#3.保证日志文件目录对zabbix运行用户有可读权限
+#4.添加监控项
+#iostatus monitor
+UserParameter=iostat[*],/home/work/app/zabbix/bin/scripts/zabbix_iostat.sh "$1" "$2"

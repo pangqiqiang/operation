@@ -1,0 +1,6 @@
+#1.基于其他主机可以从内网和外部监控接口或页面状态，通过读取本目录下web_sites.txt进行发现页面url信息
+#2.本监控脚本基于python2.7，利用了pycurl模块分析页面访问各阶段性能
+#3.添加监控项
+########web monitor######################
+UserParameter=zabbix.web.discovery[*], python /home/work/app/zabbix/bin/scripts/web_site_monitor.py $1
+UserParameter=zabbix.web.status[*], python /home/work/app/zabbix/bin/scripts/web_site_monitor.py $1 $2
