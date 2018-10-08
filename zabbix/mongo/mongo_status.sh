@@ -11,7 +11,7 @@ else
   shift 2
 fi
 until [ $# -eq 0 ];do
-        start_num=$(echo ${BASE_RESULT} | grep -bo $1|grep -Eo '[0-9]+'|head -1)
+    start_num=$(echo ${BASE_RESULT} | grep -bo $1|grep -Eo '[0-9]+'|head -1)
 	BASE_RESULT=$(echo ${BASE_RESULT} | cut -b ${start_num}-)
 	shift
 done
