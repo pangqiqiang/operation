@@ -1,0 +1,26 @@
+nohup ruby convert_user_info.rb &>/tmp/user_info.log&
+
+[189]
+nohup ruby convert_deliver_address_report.rb &> /tmp/deliver.log&
+nohup ruby convert_shebao_info.rb &>/tmp/shebao.log&
+nohup ruby convert_face_verify.rb &>/tmp/t_face_verify.log&
+nohup ruby convert_EbusinessContact.rb &>/tmp/EbusinessContact.log&
+
+[190]
+nohup ruby convert_location_info_history.rb &> /tmp/location_info_history.log&
+nohup ruby convert_person_report.rb &> /tmp/person_report.log&
+nohup ruby convert_mobile_bill_report.rb &> /tmp/mobile_bill_report.log&
+
+[191]
+nohup ruby convert_urgent_contact_history.rb &> /tmp/urgent_contact_history.log&
+nohup ruby convert_EbusinessExpense.rb &> /tmp/EbusinessExpense.log&
+nohup ruby convert_report_basic_info.rb &> /tmp/report_basic_info.log&
+
+[192]
+nohup ruby convert_StudentInfo.rb &> /tmp/StudentInfo.log&
+nohup ruby convert_urgent_contact_report.rb &>/tmp/urgent_contact_report&
+nohup ruby convert_gjj_info.rb &>/tmp/gjj_info.log&
+nohup ruby convert_face_verify_result.rb &>/tmp/face_verify_result.log&
+
+
+nohup ruby convert_mobile_call_report.rb &>/tmp/mobile_call.log&
