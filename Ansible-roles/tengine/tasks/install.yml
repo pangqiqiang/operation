@@ -1,5 +1,5 @@
 ---
-# author: lework
+# author: 
 
 - name: install | Check if tengine local file is already configured.
   stat: path={{ tengine_file_path }}

@@ -1,0 +1,4 @@
+Host  git.renrenxin.com
+ User  pangqiqiang
+ PreferredAuthentications publickey
+ IdentityFile ~/.ssh/id_rsa

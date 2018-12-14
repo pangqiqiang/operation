@@ -1,6 +1,6 @@
 #/bin/bash
 ### MySQL Slave Information
-MYSQL_HOST='127.0.0.2'
+MYSQL_HOST='127.0.0.1'
 MYSQL_PORT=$1
 MYSQL_CONN="/home/work/app/mysql/bin/mysqladmin -h${MYSQL_HOST} -P${MYSQL_PORT} show slave status\G"
 
