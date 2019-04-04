@@ -1,0 +1,15 @@
+cluster.name: elasticsearch_51niux
+node.name: 192.168.14.61
+path.data: /data/es/data    
+path.logs: /data/es/log
+network.host: 192.168.14.61
+node.master: true
+node.data: true
+discovery.zen.ping.unicast.hosts: ["192.168.14.60","192.168.14.61","192.168.14.62","192.168.14.63","192.168.14.64"]
+discovery.zen.minimum_master_nodes: 3
+discovery.zen.fd.ping_timeout: 120s
+discovery.zen.fd.ping_retries: 6
+discovery.zen.fd.ping_interval: 30s
+cluster.routing.allocation.cluster_concurrent_rebalance: 40
+cluster.routing.allocation.node_concurrent_recoveries: 40
+cluster.routing.allocation.node_initial_primaries_recoveries: 40

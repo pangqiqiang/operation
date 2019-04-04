@@ -1,0 +1,4 @@
+check file nginx_pmpweb_error_log with path /data/logs/nginx/pmp_web_error.log
+ignore match "^monit"
+
+if match "(warning|error)" then alert

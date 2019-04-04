@@ -1,0 +1,31 @@
+set daemon 30 #check services at 30-seconds intervals
+set logfile /var/log/monit.log 
+set idfile /var/.monit.id
+set statefile /var/.monit.state
+#停掉邮件告警
+#set mailserver smtp.ecloudsign.com
+#username "bs_monitor@bsitt.cn" password "*****"
+#with timeout 15 seconds
+set eventqueue
+basedir /var/monit    #set the base directory where events will be stored
+slots 100       # optionally limit the queue size
+#set mail-format {
+#from: bs_monitor@bsitt.cn
+#subject: Monit Alert -- Host $HOST 's $SERVICE $DESCRIPTION
+#message:
+#Date: $DATE
+#Action: $ACTION
+#Host: $HOST
+#Description:
+#Host $HOST 's $SERVICE $DESCRIPTION
+#$EVENT Service $SERVICE
+#$DESCRIPTION
+#}
+#set alert 821903919@qq.com # receive all alerts
+#set alert 1683804030@qq.com 
+#set alert pmp.operating@boldseas.com
+set httpd port 2812 and
+allow localhost 
+allow 172.31.119.117
+allow ecloud:ecloud121Pwd
+include /usr/local/monit/conf/monit.d/*.conf
