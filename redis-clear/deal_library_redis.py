@@ -2,7 +2,7 @@
 # -*- coding:utf8 -*-
 '''
 handle redis for libray
-usage 
+action: get, del_by_pre, del_by_file
 '''
 
 import redis
@@ -12,7 +12,7 @@ import sys
 CONFIG = {
     "host" : "r-2ze8d3f29312a524.redis.rds.aliyuncs.com",
     "port" : "6379",
-    "password": "xxxxxxxxxxxxxxxxxxx",
+    "password": "RpoNy6BRNMbhbbdn",
     "db": 5,
     "max_connections": 10
 }
@@ -66,7 +66,7 @@ def deal_exception_pipe(pipe_func, id, all_count):
         sys.exit(2)
 
 def usage():
-    print("USAGE:", sys.argv[0], "action", "[args....]")
+    print("USAGE:", sys.argv[0], "get | del_by_pre | del_by_file", "[args....]")
 
 
 #主程序
@@ -93,8 +93,9 @@ if __name__ == "__main__":
         if action == "del_by_pre" and len(sys.argv) == 2:
             print("Are Your Sure You Want to delete all keys[Y/N]")
             opt = raw_input().rstrip()
-            if opt != "y" and  opt != "Y":
-                sys.exit(0)
+            if opt == "y" or  opt == "Y":
+                prefix = ""
+                action_func(conn, prefix, 5000)  
         elif action == "get":
             if len(sys.argv) == 2:
                 print("a key must given")
