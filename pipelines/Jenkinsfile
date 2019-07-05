@@ -1,0 +1,404 @@
+pipeline {
+  agent any
+  //定义环境变量
+  environment {
+    java_repo_url = 'svn://192.168.2.214/hanshow/wise/Marketing/java'
+	web_repo_url = 'svn://192.168.2.214/hanshow/wise/Marketing/web'
+	webpda_repo_url = 'svn://192.168.2.214/hanshow/wise/Marketing/webpda'
+	DaemonService_repo_url = 'svn://192.168.2.214/hanshow/wise/Marketing/DaemonService'
+	src_path = '/home/software/marketing'
+	dev_tomcat_path = '/home/hanshow/tomcat_8080'
+	test_tomcat_path = '/home/hanshow/tomcat_8080'
+	cloud_tomcat_path = '/home/wise/tomcat_8080'
+	wumei_tomcat_path = '/home/wise/tomcat_8080'
+	product_tomcat_path = '/home/hanshow/tomcat_8080'
+	azure_tomcat_path = '/home/hanshow/app/tomcat_8080'
+	azureshow_tomcat_path = '/home/hanshow/app/tomcat_8080'
+	backup_path = '/opt/software/software'
+  }
+  //选项参数
+  options {
+    //Pipeline最近几次运行的数据
+    buildDiscarder(logRotator(numToKeepStr: '5'))
+	//保留最近五个完成的构建中的stash
+	preserveStashes()
+    //设置Pipeline运行的超时时间
+	timeout(time: 1, unit: 'HOURS')
+  }
+  //参数化构建参数
+  parameters{
+    //是否回滚
+	booleanParam name: 'ROLLBACK', defaultValue: false,  description: '是否回滚?(默认为不回滚)'
+	booleanParam name: 'ISTAG', defaultValue:true, description: '是否打新tag名?(默认为打新tag)'
+	//是否编译
+	booleanParam name: 'ISCOMPOSED', defaultValue:false, description: '是否用tag源码编译?(默认为不编译tag设定源码)'
+	//是否发布编译代码到对应环境
+	booleanParam name: 'ISDEPLOYED', defaultValue:false, description: '是发布编译代码到规定环境?(默认为不发布)'
+	//选择环境
+	choice choices: ['Develop', 'Test', 'Cloud', 'Wumei','Product', 'Template', 'Azureus', 'Azureus_Show', 'Usahold'], description: '''选择环境:
+Product:线上环境
+Cloud:展厅环境
+Test:测试环境
+Develop:开发环境
+Wumei:物美测试环境
+Template:模板
+Azureus:微软云
+Azureus_Show: 客户演示环境
+Usahold:美国AHOLD''', name: 'environ'
+	//填入java工程名
+	 text defaultValue: 'wise-base-common:1.2.1,wise-base-common-impl:1.2.1,wise-base-acl:1.2.1,wise-base-acl-impl:1.2.1,wise-base-device:1.2.1,wise-base-device-impl:1.2.1,wise-base-esl:1.2.1,wise-base-esl-impl:1.2.1,wise-base-resource:1.2.1,wise-base-resource-impl:1.2.1,wise-base-marketing:1.2.1,wise-base-marketing-impl:1.2.1,wise-portal-center:1.2.1,wise-portal-device:1.2.1',
+	 description: '填入需要构建的java工程名及branch号,以逗号分开', name: 'java_projects'
+	 //web项目
+	 text defaultValue: 'web:1.2.1',
+	  description: '填入需要构建的web项目名及branch号,以逗号分开', name: 'web_projects'
+	//webpda项目
+	text defaultValue: 'webpda:1.2.1',
+	  description: '填入需要构建的webpda项目名及branch号,以逗号分开', name: 'webpda_projects'
+	//DaemonService项目
+	text defaultValue: 'DaemonService:',
+	  description: '填入需要构建的DaemonService项目名及branch号,以逗号分开', name: 'DaemonService_projects'
+	//tag后缀
+	string defaultValue: '1.2.1_rc1', description: '填入tag后的名称后缀', name: 'tag_suffix'
+	//tomcat_port
+	string defaultValue:'8080', description: '远程tomcat服务端口，用于确认服务停止和启动是否完成', name: 'tomcat_port'
+}
+  stages {
+    stage('源码管理--更新tag') {
+	   when {
+                allOf {
+					expression { return params.ISTAG }
+					not  {expression { return params.ROLLBACK }}
+				}
+            }
+      steps('svn批量打tag') {
+		sh script: '''
+				IFS=','
+				for project_pair in ${java_projects};do
+					projectname=$(echo $project_pair| awk -F: '{print $1}')
+					version=$(echo $project_pair|awk -F: '{print $2}')
+					count=$(svn list ${java_repo_url}/${projectname}/tags | grep ${projectname}_${tag_suffix} | wc -l)
+					[ $count -gt 0 ] && svn rm ${java_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} -m "重新更新tag"
+					svn copy ${java_repo_url}/${projectname}/branches/${projectname}_${version} ${java_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix} username=pangqiqiang password=admin123#!"
+				done
+				for project_pair in ${web_projects};do
+					projectname=$(echo $project_pair| awk -F: '{print $1}')
+					version=$(echo $project_pair|awk -F: '{print $2}')
+				    count=$(svn list ${web_repo_url}/tags | grep ${projectname}_${tag_suffix} | wc -l)
+					[ $count -gt 0 ] && svn rm ${web_repo_url}/tags/${projectname}_${tag_suffix} -m "重新更新tag"
+					svn copy ${web_repo_url}/branches/${projectname}_${version} ${web_repo_url}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix} username=pangqiqiang password=admin123#!"
+				done
+				for project_pair in ${webpda_projects};do
+					projectname=$(echo $project_pair| awk -F: '{print $1}')
+					version=$(echo $project_pair|awk -F: '{print $2}')
+					count=$(svn list ${webpda_repo_url}/tags | grep ${projectname}_${tag_suffix}|wc -l)
+					[ $count -gt 0 ]  && svn rm ${webpda_repo_url}/tags/${projectname}_${tag_suffix} -m "重新更新tag"
+					svn copy ${webpda_repo_url}/branches/${projectname}_${version} ${webpda_repo_url}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix} username=pangqiqiang password=admin123#!"
+				done
+				for project_pair in ${DaemonService_projects};do
+					projectname=$(echo $project_pair| awk -F: '{print $1}')
+					version=$(echo $project_pair|awk -F: '{print $2}')
+					count=$(svn list ${DaemonService_repo_url}/tags | grep ${projectname}_${tag_suffix}|wc -l)
+					[ $count -gt 0 ]  && svn rm ${DaemonService_repo_url}/tags/${projectname}_${tag_suffix} -m "重新更新tag username=pangqiqiang password=admin123#!"
+					if [ "$version" = "" ];then
+						svn copy ${DaemonService_repo_url}/branches/${projectname} ${DaemonService_repo_url}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix} username=pangqiqiang password=admin123#!"
+					else
+						svn copy ${DaemonService_repo_url}/branches/${projectname}_${version} ${DaemonService_repo_url}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix} username=pangqiqiang password=admin123#!"
+					fi
+				done
+			 '''
+		}
+	} 
+	stage('拉取代码编译'){
+		when {
+			   allOf {
+			   expression { return params.ISCOMPOSED }
+			   not { expression {return params.ROLLBACK} }
+			  }
+		}
+		steps('checkout-compile'){
+		    sh script:'''
+			   source /etc/profile
+			   function copy_config(){
+			    case ${environ} in
+				 "Develop")
+				   cp src/main/resources/config/dev/config.properties src/main/resources
+				   ;;
+				 "Test")
+				   cp src/main/resources/config/test/config.properties src/main/resources
+				   ;;
+				 "Cloud")
+				   cp src/main/resources/config/cloud/config.properties src/main/resources
+				   ;;
+				 "Wumei")
+				   cp src/main/resources/config/wumei/config.properties src/main/resources
+				   ;;				   
+				 "Product")
+				   cp src/main/resources/config/product/config.properties src/main/resources
+				  ;;
+				 "Template")
+				   cp src/main/resources/config/template/config.properties src/main/resources
+				  ;;
+				  "Azureus_Show")
+				   cp src/main/resources/config/azureshow/config.properties src/main/resources
+				  ;;
+				 "Azureus")
+				   cp src/main/resources/config/azureus/config.properties src/main/resources
+				  ;;
+				 "Usahold")
+				   cp src/main/resources/config/usahold/config.properties src/main/resources
+				  ;;				  
+				esac
+			   }
+			   function copy_webpda_config(){
+			    case ${environ} in
+				 "Develop")
+				   cp src/config/dev/config.json  dist
+				   ;;
+				 "Test")
+				   cp src/config/test/config.json  dist
+				   ;;
+				 "Cloud")
+				   cp src/config/cloud/config.json  dist
+				   ;;
+				 "Wumei")
+				   cp src/config/wumei/config.json  dist
+				   ;;
+				 "Product")
+				   cp src/config/prod/config.json  dist
+				   ;;
+				 "Template")
+				   cp src/config/template/config.json  dist
+				   ;;
+				 "Azureus")
+				   cp src/config/azureus/config.json  dist
+				   ;;
+				 "Azureus_Show")
+				   cp src/config/azureshow/config.json  dist
+				   ;;
+				 "Usahold")
+				   cp src/config/usahold/config.json  dist
+				   ;;
+				esac
+			   }
+
+			   function copy_web_config(){
+			    case ${environ} in
+				 "Develop")
+				   cp config/dev/config.json  common
+				   ;;
+				 "Test")
+				   cp config/test/config.json  common
+				   ;;
+				 "Cloud")
+				   cp config/cloud/config.json  common
+				   ;;
+				 "Wumei")
+				   cp config/wumei/config.json  common
+				   ;;
+				 "Product")
+				   cp config/prod/config.json  common
+				   ;;
+				 "Template")
+				   cp config/template/config.json  common
+				   ;;
+				 "Azureus")
+				   cp config/azureus/config.json  common
+				   ;;
+				 "Azureus_Show")
+				   cp config/azureshow/config.json  common
+				   ;;
+				 "Usahold")
+				   cp config/usahold/config.json  common
+				   ;;
+				esac
+			   }
+
+
+			   IFS=','
+               for project_pair in ${java_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   #if [[ $projectname == *impl ]];then
+				       [ -d ${src_path}/${projectname} ] && rm -rf ${src_path}/${projectname}
+					   /usr/bin/ansible localhost -m subversion  -a "repo=${java_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} dest=${src_path}/${projectname}"
+						cd ${src_path}/${projectname}
+						copy_config
+						mvn clean -U package -Dmaven.test.skip=true
+				   #fi
+			   done
+
+				for project_pair in ${web_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   [ -d ${src_path}/${projectname} ] && rm -rf ${src_path}/${projectname}
+					/usr/bin/ansible localhost -m subversion  -a "repo=${web_repo_url}/tags/${projectname}_${tag_suffix} dest=${src_path}/${projectname}"
+					cd ${src_path}/${projectname}
+					copy_web_config
+					rm -rf ${src_path}/${projectname}/.svn
+			   done
+			   for project_pair in ${webpda_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+					[ -d ${src_path}/${projectname} ] && rm -rf ${src_path}/${projectname}
+					/usr/bin/ansible localhost -m subversion  -a "repo=${webpda_repo_url}/tags/${projectname}_${tag_suffix} dest=${src_path}/${projectname}"
+					cd ${src_path}/${projectname}
+					copy_webpda_config
+					cp -a ${src_path}/${projectname}/dist ${src_path}/${projectname}_new
+					rm -rf ${src_path}/${projectname}
+					mv ${src_path}/${projectname}_new ${src_path}/${projectname}
+			   done
+
+			   for project_pair in ${DaemonService_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   [ -d ${src_path}/${projectname} ] && rm -rf ${src_path}/${projectname}
+				   /usr/bin/ansible localhost -m subversion  -a "repo=${DaemonService_repo_url}/tags/${projectname}_${tag_suffix} dest=${src_path}/${projectname}"
+				   cd ${src_path}/${projectname}
+				   rm -rf ${src_path}/${projectname}/.svn
+			   done
+			'''
+		}
+	}
+
+	stage('停止远程tomcat服务备份现有代码,同步新代码，重启服务'){
+		when {
+			   allOf {
+			    expression { return params.ISDEPLOYED }
+			    not { expression {return params.ROLLBACK} }
+			   }
+		}
+		steps('停止服务,备份,拷贝，重启'){
+			sh script: '''
+			   source /etc/profile
+			   IFS=','
+			   function set_host(){
+			    case ${environ} in
+				 "Develop")
+				   target_host="marketing_dev"
+				   target_path="$dev_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Test")
+				   target_host="marketing_test"
+				   target_path="$test_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Cloud")
+				   target_host="marketing_cloud"
+				   target_path="$cloud_tomcat_path"
+				   remote_user="wise"
+				   ;;
+				 "Wumei")
+				   target_host="marketing_wumei"
+				   target_path="$wumei_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Product")
+				   target_host="marketing_product"
+				   target_path="$product_tomcat_path"
+				   remote_user="hanshow"
+				  ;;
+				 "Azureus")
+				   jumper_host="marketing_azure_jumper"
+				   target_host="marketing_azure"
+				   follower_host=("10.0.1.5" "10.0.1.6")
+				   target_path="$azure_tomcat_path"
+				   remote_user="hanshow"
+				  ;;
+				 "Azureus_Show")
+				   target_host="marketing_azure_show"
+				   target_path="$azureshow_tomcat_path"
+				   remote_user="hanshow"
+				  ;;
+				esac
+			   }
+			   set_host
+			   /usr/bin/ansible $target_host -m script -a "${src_path}/script/deploy_back_tomcat.sh $target_path $backup_path stop_back" -u $remote_user -b
+			   /usr/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=stopped delay=15 timeout=60" -u $remote_user
+			   if [ ${environ} = "Azureus" ];then
+			       old_target_host=$target_host
+				   target_host=$jumper_host
+			   fi
+               for project_pair in ${java_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   #if [[ $projectname == *impl ]];then
+				        war_name="market-${projectname#wise-}"
+						if [ -f ${src_path}/${projectname}/target/${war_name}.war ];then
+							/usr/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}/target/${war_name}.war dest=$target_path/webapps recursive=yes delete=yes private_key=/home/hanshow/.ssh/id_rsa" -u $remote_user
+						else
+							/usr/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}/target/${projectname}.war dest=$target_path/webapps recursive=yes delete=yes private_key=/home/hanshow/.ssh/id_rsa" -u $remote_user
+						fi
+                   #fi
+                done
+                for project_pair in ${web_projects};do
+				    projectname=$(echo $project_pair| awk -F: '{print $1}')
+					/usr/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}/ dest=$target_path/webapps/ROOT recursive=yes delete=yes private_key=/home/hanshow/.ssh/id_rsa" -u $remote_user
+				done
+			   for project_pair in ${webpda_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   /usr/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}  dest=$target_path/webapps recursive=yes delete=yes private_key=/home/hanshow/.ssh/id_rsa" -u $remote_user
+			   done
+			   for project_pair in ${DaemonService_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   /usr/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname} dest=$target_path/webapps recursive=yes delete=yes private_key=/home/hanshow/.ssh/id_rsa" -u $remote_user
+			   done
+			   if [  ${environ} = "Azureus" ];then
+			       for sync_host in ${follower_host[@]};do
+				      /usr/bin/ansible $sync_host -m file -a "path=$target_path/webapps state=absent" -b 
+				      /usr/bin/ansible $target_host -m shell -a "scp -r $target_path/webapps $sync_host:$target_path/webapps"
+				   done
+				   target_host=$old_target_host
+			   fi
+			   /usr/bin/ansible $target_host -m shell -a "source /etc/profile && nohup ${target_path}/bin/catalina.sh start&" -u $remote_user
+			   /usr/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=started delay=15 timeout=60" -u $remote_user
+			'''
+		}
+	}
+
+	stage("回滚"){
+		when {
+			 expression {return params.ROLLBACK}
+		}
+		steps("停止服务，拷贝源代码"){
+			sh script: '''
+			   source /etc/profile
+			   function set_host(){
+			    case ${environ} in
+				 "Develop")
+				   target_host="marketing_dev"
+				   target_path="$dev_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Test")
+				   target_host="marketing_test"
+				   target_path="$test_tomcat_path"
+				   remote_user="hanshow"
+				   ;;
+				 "Cloud")
+				   target_host="marketing_cloud"
+				   target_path="$cloud_tomcat_path"
+				   remote_user="wise"
+				   ;;
+				 "Product")
+				   target_host="marketing_product"
+				   target_path="$product_tomcat_path"
+				   remote_user="wise"
+				  ;;
+				 "Azureus")
+				   target_host="marketing_azure"
+				   target_path="$azure_tomcat_path"
+				   remote_user="hanshow"
+				  ;;
+				 "Azureus_Show")
+				   target_host="marketing_show_azure"
+				   target_path="$azureshow_tomcat_path"
+				   remote_user="hanshow"
+				  ;;
+				esac
+			   }
+			   set_host
+			   /usr/bin/ansible $target_host -m script -a "${src_path}/script/deploy_back_tomcat.sh $target_path $backup_path roll_back"
+			   /usr/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=stopped delay=15 timeout=60"
+			   /usr/bin/ansible $target_host -m shell -a "source /etc/profile && nohup ${target_path}/bin/catalina.sh start&" -u $remote_user
+			   /usr/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=startted delay=15 timeout=60" -u $remote_user
+            '''
+		}
+	}
+  }
+}

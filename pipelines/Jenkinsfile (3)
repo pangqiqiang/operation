@@ -1,0 +1,292 @@
+pipeline {
+  agent any
+  //定义环境变量
+  environment {
+    java_repo_url = 'svn://192.168.2.214/hanshow/wise/rt-mart/java'
+	web_repo_url = 'svn://192.168.2.214/hanshow/wise/rt-mart/web'
+	src_path = '/home/software/rt-market'
+	test_tomcat_path = '/home/hanshow/tomcat_8080'
+	cloud_tomcat_path = '/opt/tomcat_8080'
+	rttest_tomcat_path = '/opt/tomcat_8080'
+	uat_tomcat_path = '/home/hanshow/tomcat_8080'
+	cloud_dest_ssh_port = '10444'
+	default_dest_ssh_port = '22'	
+	tempapp_path = '/opt/software/tempweb'
+	product_tomcat_path = '/home/hanshow/tomcat_8080'
+	backup_path = '/opt/software'
+  }
+  //选项参数
+  options {
+    //Pipeline最近几次运行的数据
+    buildDiscarder(logRotator(numToKeepStr: '5'))
+	//保留最近五个完成的构建中的stash
+	preserveStashes()
+    //设置Pipeline运行的超时时间
+	timeout(time: 1, unit: 'HOURS')
+  }
+  //参数化构建参数
+  parameters{
+    //是否回滚
+	booleanParam name: 'ROLLBACK', defaultValue: false,  description: '是否回滚?(默认为不回滚)'
+	booleanParam name: 'ISTAG', defaultValue:true, description: '是否打新tag名?(默认为打新tag)'
+	//是否编译
+	booleanParam name: 'ISCOMPOSED', defaultValue:true, description: '是否用tag源码编译?(默认为编译tag设定源码)'
+	//是否发布编译代码到对应环境
+	booleanParam name: 'ISDEPLOYED', defaultValue:true, description: '是发布编译代码到规定环境?(默认为发布)'
+	//选择环境
+	choice choices: ['Develop', 'Test', 'Cloud', 'UAT','Product'], description: '''选择环境:
+Product:线上环境
+Cloud:展厅环境
+Test:测试环境
+UAT:UAT环境
+Develop:开发环境)''', name: 'environ'
+	//填入java工程名
+	 text defaultValue: '',
+	 description: '填入需要构建的java工程名及branch号,以逗号分开', name: 'java_projects'
+	 //web项目
+	 text defaultValue: 'web:1.2.1',
+	  description: '填入需要构建的web项目名及branch号,以逗号分开', name: 'web_projects'
+	//tag后缀
+	string defaultValue: '1.2.1_rc1', description: '填入tag后的名称后缀', name: 'tag_suffix'
+	//tomcat_port
+	string defaultValue:'8080', description: '远程tomcat服务端口，用于确认服务停止和启动是否完成', name: 'tomcat_port'
+}
+  stages {
+    stage('源码管理--更新tag') {
+	   when {
+                allOf {
+					expression { return params.ISTAG }
+					not  {expression { return params.ROLLBACK }}
+				}
+            }
+      steps('svn批量打tag') {
+		sh script: '''
+				IFS=','
+				for project_pair in ${java_projects};do
+					projectname=$(echo $project_pair| awk -F: '{print $1}')
+					version=$(echo $project_pair|awk -F: '{print $2}')
+					count=$(svn list ${java_repo_url}/${projectname}/tags | grep ${projectname}_${tag_suffix} | wc -l)
+					[ $count -gt 0 ] && svn rm ${java_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} -m "重新更新tag"
+					svn copy ${java_repo_url}/${projectname}/branches/${projectname}_${version} ${java_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix}"
+				done
+				for project_pair in ${web_projects};do
+					projectname=$(echo $project_pair| awk -F: '{print $1}')
+					version=$(echo $project_pair|awk -F: '{print $2}')
+				    count=$(svn list ${web_repo_url}/${projectname}/tags | grep ${projectname}_${tag_suffix} | wc -l)
+					[ $count -gt 0 ] && svn rm ${web_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} -m "重新更新tag"
+					svn copy ${web_repo_url}/branches/${projectname}_${version} ${web_repo_url}/tags/${projectname}_${tag_suffix} -m "新建tag版本:${projectname}_${tag_suffix}"
+				done
+			 '''
+		}
+	}
+
+	stage('拉取代码编译'){
+		when {
+			   allOf {
+			   expression { return params.ISCOMPOSED }
+			   not { expression {return params.ROLLBACK} }
+			  }
+		}
+		steps('checkout-compile'){
+		    sh script:'''
+			   source /etc/profile
+			   function copy_config(){
+			    case ${environ} in
+				 "Develop")
+				   cp src/main/resources/config/dev/config.properties src/main/resources
+				   ;;
+				 "Test")
+				   cp src/main/resources/config/test/config.properties src/main/resources
+				   ;;
+				 "Cloud")
+				   cp src/main/resources/config/cloud/config.properties src/main/resources
+				   ;;
+				 "UAT")
+				   cp src/main/resources/config/uat/config.properties src/main/resources
+				   ;;
+				 "Product")
+				   cp src/main/resources/config/product/config.properties src/main/resources
+				  ;;
+				esac
+			   }
+
+			   function copy_web_config(){
+			    case ${environ} in
+				 "Develop")
+				   cp config/dev/config.json  common
+				   ;;
+				 "Test")
+				   cp config/test/config.json  common
+				   ;;
+				 "Cloud")
+				   cp config/cloud/config.json  common
+				   ;;
+				 "UAT")
+				   cp config/uat/config.json  common
+				   ;;				   
+				 "Product")
+				   cp config/prod/config.json  common
+				esac
+			   }
+
+			   IFS=','
+               for project_pair in ${java_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   if [[ $projectname == *impl ]];then
+				       [ -d ${src_path}/${projectname} ] && rm -rf ${src_path}/${projectname}
+					   /usr/local/bin/ansible localhost -m subversion  -a "repo=${java_repo_url}/${projectname}/tags/${projectname}_${tag_suffix} dest=${src_path}/${projectname}"
+						cd $src_path/${projectname}
+						copy_config
+						mvn clean package -Dmaven.test.skip=true
+				   fi
+			   done
+
+				for project_pair in ${web_projects};do
+			       projectname=$(echo $project_pair| awk -F: '{print $1}')
+				   [ -d ${src_path}/${projectname} ] && rm -rf ${src_path}/${projectname}
+					/usr/local/bin/ansible localhost -m subversion  -a "repo=${web_repo_url}/tags/${projectname}_${tag_suffix} dest=${src_path}/${projectname}"
+					cd /opt/software/marketing/${projectname}
+					copy_web_config
+					rm -rf ${src_path}/${projectname}/.svn
+			   done
+			'''
+		}
+	}
+
+	stage('停止远程tomcat服务备份现有代码,同步新代码，重启服务'){
+		when {
+			   allOf {
+			    expression { return params.ISDEPLOYED }
+			    not { expression {return params.ROLLBACK} }
+			   }
+		}
+		steps('停止服务,备份,拷贝，重启'){
+			sh script: '''
+			   source /etc/profile
+			   IFS=','
+			   function set_host(){
+			    case ${environ} in
+				 "Develop")
+				   target_host="rtmarket_dev"
+				   target_path="$dev_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Test")
+				   target_host="rtmarket_test"
+				   target_path="$test_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Cloud")
+				   target_host="rtmarket_cloud"
+				   target_path="$cloud_tomcat_path"
+				   remote_user="hanshow"
+				   ;;
+				 "UAT")
+				   target_host="rtmarket_uat"
+				   target_path="$uat_tomcat_path"
+				   remote_user="hanshow"
+				  ;;				   
+				 "Product")
+				   target_host="marketing_product"
+				   follow_host=("172.21.0.13" "172.21.0.14")
+				   target_path="$product_tomcat_path"
+				   remote_user="hanshow"
+				  ;;
+				esac
+			   }
+			   
+			   function set_dest_port(){
+					if [ ${environ} == "Cloud" ];then
+					    dest_ssh_port=${cloud_dest_ssh_port}
+					else
+						dest_ssh_port=${default_dest_ssh_port}
+					fi
+			    }
+			   set_host
+			   set_dest_port
+			   /usr/local/bin/ansible $target_host -m script -a "${src_path}/script/deploy_back_tomcat.sh $target_path $backup_path stop_back"
+			   /usr/local/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=stopped delay=15 timeout=60"
+			   if [ $environ = 'Product' ];then
+					jumper_host="rtmarket_uat"
+				   for project_pair in ${java_projects};do
+					   projectname=$(echo $project_pair| awk -F: '{print $1}')
+					   if [[ $projectname == *impl ]];then
+							war_name="rtmart-${projectname#wise-}"
+							if [ -f ${src_path}/${projectname}/target/${war_name}.war ];then
+								/usr/local/bin/ansible $jumper_host -m synchronize -a "src=${src_path}/${projectname}/target/${war_name}.war dest=$tempapp_path/webapps recursive=yes delete=yes dest_port=$dest_ssh_port"
+							else
+								/usr/local/bin/ansible $jumper_host -m synchronize -a "src=${src_path}/${projectname}/target/${projectname}.war dest=$tempapp_path/webapps recursive=yes delete=yes dest_port=$dest_ssh_port"
+							fi
+					   fi
+					done
+					for project_pair in ${web_projects};do
+						projectname=$(echo $project_pair| awk -F: '{print $1}')
+						/usr/local/bin/ansible $jumper_host -m synchronize -a "src=${src_path}/${projectname}/ dest=$tempapp_path/webapps/ROOT recursive=yes delete=yes dest_port=$dest_ssh_port"
+					done
+					for sync_host in ${follow_host[@]};do
+					    /usr/local/bin/ansible $jumper_host -m shell -a "rsync -avz --delete $tempapp_path/ ${remote_user}@${sync_host}:$target_path"
+					done
+				else
+				   for project_pair in ${java_projects};do
+					   projectname=$(echo $project_pair| awk -F: '{print $1}')
+					   if [[ $projectname == *impl ]];then
+							war_name="rtmart-${projectname#wise-}"
+							if [ -f ${src_path}/${projectname}/target/${war_name}.war ];then
+								/usr/local/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}/target/${war_name}.war dest=$target_path/webapps recursive=yes delete=yes dest_port=${dest_ssh_port}" -u $remote_user
+							else
+								/usr/local/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}/target/${projectname}.war dest=$target_path/webapps recursive=yes delete=yes dest_port=${dest_ssh_port}" -u $remote_user
+							fi
+					   fi
+					done
+					for project_pair in ${web_projects};do
+						projectname=$(echo $project_pair| awk -F: '{print $1}')
+						/usr/local/bin/ansible $target_host -m synchronize -a "src=${src_path}/${projectname}/ dest=$target_path/webapps/ROOT recursive=yes delete=yes dest_port=${dest_ssh_port}"
+					done
+				fi
+			   /usr/local/bin/ansible $target_host -m shell -a "source /etc/profile && nohup ${target_path}/bin/catalina.sh start&" -u $remote_user
+			   /usr/local/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=started delay=15 timeout=60"
+			'''
+		}
+	}
+
+	stage("回滚"){
+		when {
+			 expression {return params.ROLLBACK}
+		}
+		steps("停止服务，拷贝源代码"){
+			sh script: '''
+			   source /etc/profile
+			   function set_host(){
+			    case ${environ} in
+				 "Develop")
+				   target_host="marketing_dev"
+				   target_path="$dev_tomcat_path"
+				   remote_user="root"
+				   ;;
+				 "Test")
+				   target_host="marketing_test"
+				   target_path="$test_tomcat_path"
+				   remote_user="hanshow"
+				   ;;
+				 "Cloud")
+				   target_host="marketing_cloud"
+				   target_path="$cloud_tomcat_path"
+				   remote_user="wise"
+				   ;;
+				 "Product")
+				   target_host="marketing_product"
+				   target_path="$product_tomcat_path"
+				   remote_user="wise"
+				  ;;
+				esac
+			   }
+			   set_host
+			   /usr/local/bin/ansible $target_host -m script -a "${src_path}/script/deploy_back_tomcat.sh $target_path $backup_path roll_back"
+			   /usr/local/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=stopped delay=15 timeout=60"
+			   /usr/local/bin/ansible $target_host -m shell -a "source /etc/profile && nohup ${target_path}/bin/catalina.sh start&" -u $remote_user
+			   /usr/local/bin/ansible $target_host -m wait_for -a "port=${tomcat_port} state=startted delay=15 timeout=60"
+            '''
+		}
+	}
+  }
+}
