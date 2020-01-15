@@ -1,0 +1,17 @@
+tr
+  td 
+    div.items #{project}
+  - if @env == "prod"
+    td
+      <button value="#{project}" onclick="wsGet('/deploy', 'prod', 'back', this.value, '_deploy.sh', 'deploy')"> 部署</button>
+    td
+      <button value="#{project}" onclick="wsGet('/deploy', 'prod',  'back', this.value, '_deploy.sh', 'rollback')"> 回滚</button>
+    td
+      <button value="#{project}" onclick="wsGet('/deploy', 'prod',  'back', this.value, '_deploy.sh', 'restart')"> 重启</button>
+  - elsif @env == "liantiao"
+    td
+      <button value="#{project}" onclick="wsGet('/deploy', 'liantiao',  'back', this.value, '_liantiao_deploy.sh', 'deploy')"> 部署</button>
+    td
+      <button value="#{project}" onclick="wsGet('/deploy', 'liantiao',  'back', this.value, '_liantiao_deploy.sh', 'rollback')"> 回滚</button>
+    td
+      <button value="#{project}" onclick="wsGet('/deploy', 'liantiao',  'back', this.value, '_liantiao_deploy.sh', 'restart')"> 重启</button>    

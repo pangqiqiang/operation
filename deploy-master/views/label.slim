@@ -1,0 +1,13 @@
+- if @role == "admin"
+  - if @env == "prod"
+    a.sel_btn#btn1 href="/liantiao" onclick="changeSelBtn(1)" 联调环境
+  - elsif @env == "liantiao"
+    a.sel_btn.ch_cls#btn1 href="/liantiao" onclick="changeSelBtn(1)" 联调环境
+  - if @env == "prod" 
+    a.sel_btn.ch_cls#btn2 href="/prod" onclick="changeSelBtn(2)" 生产环境
+  - elsif @env == "liantiao"
+    a.sel_btn#btn2 href="/prod" onclick="changeSelBtn(2)" 生产环境
+  a.sel_btn#btn3 href="#" onclick="changeSelBtn(3)" 留个位置而已
+- elsif @role == "common"
+  a.sel_btn.ch_cls#btn1 href="/liantiao" onclick="changeSelBtn(1)" 联调环境
+  a.sel_btn#btn3 href="#" onclick="changeSelBtn(3)" 留个位置而已

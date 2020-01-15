@@ -1,3 +1,4 @@
+#!groovy
 pipeline {
   agent any
   //定义环境变量
@@ -14,6 +15,8 @@ pipeline {
 	tempapp_path = '/opt/software/tempweb'
 	product_tomcat_path = '/home/hanshow/tomcat_8080'
 	backup_path = '/opt/software'
+	//扩展path路径
+	PATH = "/user/lib/custom_tool/bin:$PATH"
   }
   //选项参数
   options {
@@ -23,6 +26,10 @@ pipeline {
 	preserveStashes()
     //设置Pipeline运行的超时时间
 	timeout(time: 1, unit: 'HOURS')
+	//失败重试3次
+	retry (3)
+	//禁止pipeline同时执行
+	disableConcurrentBuilds()
   }
   //参数化构建参数
   parameters{
@@ -50,6 +57,10 @@ Develop:开发环境)''', name: 'environ'
 	string defaultValue: '1.2.1_rc1', description: '填入tag后的名称后缀', name: 'tag_suffix'
 	//tomcat_port
 	string defaultValue:'8080', description: '远程tomcat服务端口，用于确认服务停止和启动是否完成', name: 'tomcat_port'
+	//string
+	 string (name: 'p_version', defaultValue: '1.0.0', description: 'build version')
+	//password
+	password (name: 'p_password', defaultValue: '', description: '')
 }
   stages {
     stage('源码管理--更新tag') {

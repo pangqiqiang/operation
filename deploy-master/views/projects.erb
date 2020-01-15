@@ -1,0 +1,106 @@
+<html>
+    <head>
+    <style> 
+        .out_area{overflow-y:scroll;overflow-x:scroll;border:1;width:700;height:800;position:absolute;left:400;top:20;font-size:12px} 
+    </style> 
+    <script>
+    //function httpGet(url)
+    // {
+    //         var xmlHttp = new XMLHttpRequest();
+    //         xmlHttp.open("GET", url, false); // false: wait respond
+    //         xmlHttp.send(null);
+    //         return xmlHttp.responseText;
+    // }
+    // function wsGet(address, env, script, sufix, action)
+    // {
+    //     document.getElementById('out').style.display ="block"
+    //     var url = address + "/" + env + "/" + script + sufix + "/" + action;
+    //     //var url = address + "/" + env + "/" + "test.sh" + "/" + action;
+    //     response = "执行结果</br>" + httpGet(url);
+    //     document.getElementById('out').innerHTML = response;
+    // }
+    var host = "47.94.113.158:4567"
+    //websocket request
+    function wsGet(path, env, script, sufix, action){
+       var outer = document.getElementById('out');
+       outer.style.display ="block";
+       var url = "ws://" + host + path + "/" + env + "/" + script + sufix + "/" + action;
+       var ws = new WebSocket(url);
+       ws.onopen = function(){
+           outer.innerHTML = "开始执行.......</br>";
+       }
+       ws.onmessage = function (evt) { 
+                  var received_msg = evt.data;
+                  var old_msg = outer.innerHTML;
+                  outer.innerHTML = old_msg + received_msg;
+        };
+    }
+    </script>
+    </head>
+    <body>
+    <div id='out' class='out_area' hidden></div>
+    <b><font size="3" color="red">联调环境</font></b>
+    <hr border=2 color="red" width=300 align="left">
+    <table border=0>
+        <tr>
+            <th>项目</th>
+            <th>部署</th>
+            <th>回滚</th>
+            <th>重启</th>
+        </tr>
+    <% @projects_liantiao.each do |val| %>
+        <tr>
+            <td><b><%= val %></b></td>
+            <td><button value="<%= val %>" onclick="wsGet('/deploy', 'liantiao',  this.value, '_liantiao_deploy.sh', 'deploy')">部署</button></td>
+            <td><button value="<%= val %>" onclick="wsGet('/deploy', 'liantiao',  this.value, '_liantiao_deploy.sh', 'rollback')">回滚</button></td>
+            <td><button value="<%= val %>" onclick="wsGet('/deploy', 'liantiao',  this.value, '_liantiao_deploy.sh', 'restart')">重启</button></td>
+        </tr>
+    <% end %>
+    </table>
+    </br>
+    </br>
+    <% if @role == 'admin' %>
+    <b><font size="3" color="red">生产环境</font></b>
+    <hr border=2 color="red" width=300 align="left">
+    <table border=0>
+        <tr>
+            <th>项目</th>
+            <th>部署</th>
+            <th>回滚</th>
+            <th>重启</th>
+        </tr>
+        <% @projects_prod.each do |val| %>
+            <tr>
+            <td><b><%= val %></b></td>
+            <td><button value="<%= val %>" onclick="wsGet('/deploy', 'liantiao',  this.value, '_liantiao_deploy.sh', 'deploy')">部署</button></td>
+            <td><button value="<%= val %>" onclick="wsGet('/deploy', 'liantiao',  this.value, '_liantiao_deploy.sh', 'rollback')">回滚</button></td>
+            <td><button value="<%= val %>" onclick="wsGet('/deploy', 'liantiao',  this.value, '_liantiao_deploy.sh', 'restart')">重启</button></td>
+            </tr>
+        <% end %>
+        </table>   
+    <% end %>
+
+    </br>
+    </br>
+    <b><font size="3" color="red">上传文件</font></b>
+    <form action='/upload' enctype="multipart/form-data" method='POST'>
+        <input name="file" type="file" />
+        </br>
+        <font size='2'>服务器</font>
+        <select name="host">
+            <option value ="liantiao-web">liantiao_web</option>
+            <option value ="adminnodes">adminnodes</option>
+            <option value ="liantiao-db">liantiao-db</option>
+            <option value ="prod-web">prod_web</option>
+            <option value ="prod-data">prod-data</option>
+        </select>
+        </br>
+        <font size='2'>路径</font>
+        <input type='text' name="path" value="/data">
+        </br>
+        <font size='2'>权限</font>
+        <input type='text' name="mode" value="0644">   
+        </br><input type="submit" value="Upload" />
+    </form>  
+    </body>
+</html>

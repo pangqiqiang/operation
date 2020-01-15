@@ -1,0 +1,13 @@
+== slim :label
+div id='out' class='out_area'
+p.type 后台项目
+table.invisible
+  == slim :backend_table_head
+  -  @backends.each do |project|
+    == slim :backend_table_content, locals: {project: project}
+p.type 前端项目
+table.invisible
+  == slim :frontend_table_head
+  - @frontends.each do |project|
+    == slim :frontend_table_content, locals: {project: project}
+== slim :upload

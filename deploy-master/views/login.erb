@@ -1,0 +1,8 @@
+<form action="/login" method="post">
+  Name: <input type="text" name="username" />
+  Password: <input type="password" name="password" />
+  <input type="submit" value="Log in" />
+</form>
+<% if @success %>
+<div color='red' hiden>用户名或密码错误.....</div>
+<% end %>

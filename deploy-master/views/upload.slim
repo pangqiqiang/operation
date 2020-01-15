@@ -1,0 +1,17 @@
+p.type 上传文件
+form action="/upload" enctype="multipart/form-data" method="post"
+  input type="file" name="file"/
+  div.pretext 服务器
+  select name="host"
+    option value="liantiao-web" liantiao-web
+    option value ="adminnodes" adminnodes
+    option value ="liantiao-db" liantiao-db
+    option value ="prod-web" prod-web
+    option value ="prod-db" prod-db
+    option value ="prod-data" prod-data
+  div.pretext 路径
+  input type='text' name="path" value="/data"/
+  div.pretext 权限
+  input type='text' name="mode" value="0644"/
+  </br> 
+  input type="submit" value="Upload"/
