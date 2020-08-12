@@ -1,0 +1,75 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+    # The most common configuration options are documented and commented below.
+    # For a complete reference, please see the online documentation at
+    # https://docs.vagrantup.com.
+  
+    # Every Vagrant development environment requires a box. You can search for
+    # boxes at https://vagrantcloud.com/search.
+    config.vm.define "jms", autostart: false  do |jms|
+        jms.vm.box_check_update = false
+        jms.vm.box = "centos/7"
+        jms.vm.hostname = "jumpserver"
+        jms.vm.network "private_network", ip: "192.168.33.101"
+        jms.vm.provider "virtualbox" do |vb|
+           vb.memory = "4096"
+           vb.cpus = 2
+           vb.name = "jms"
+        end
+  
+        jms.vm.synced_folder ".", "/vagrant", type: "rsync",
+            rsync__verbose: true,
+            rsync__exclude: ['.git*', 'node_modules*','*.log','*.box','Vagrantfile','*.md']
+  
+        jms.vm.provision "shell" do |s|
+           s.path = "prepare_jms.sh"
+           # 1:token 2: mysqlhost 3: redishost 4: jmshost
+           s.args = ["Whnvrq56Z4gzxvxo", "192.168.33.102", "192.168.33.103", "192.168.1.101"]
+        end
+    end
+  
+    config.vm.define "db", autostart: false do |db|
+        db.vm.box_check_update = false
+        db.vm.box = "centos/7"
+        db.vm.hostname = "mysql"
+        db.vm.network "private_network", ip: "192.168.33.102"
+        db.vm.provider "virtualbox" do |vb|
+            vb.memory = "2048"
+            vb.cpus = 1
+            vb.name = "db"
+        end
+
+        db.vm.synced_folder ".", "/vagrant", type: "rsync",
+        rsync__verbose: true,
+        rsync__exclude: ['.git*', 'node_modules*','*.log','*.box','Vagrantfile', '*.md']
+
+        db.vm.provision "shell" do |s|
+            s.path = "prepare_mysql.sh"
+            # 1: root_pass 2: jumpserver_pass
+            s.args = ["AYRAzX/4hOFHI", "i4QRQyK96VuV1ACD"]
+        end
+    end
+
+    config.vm.define "redis", autostart: false do |redis|
+        db.vm.box_check_update = false
+        db.vm.box = "centos/7"
+        db.vm.hostname = "redis"
+        db.vm.network "private_network", ip: "192.168.33.103"
+        db.vm.provider "virtualbox" do |vb|
+            vb.memory = "2048"
+            vb.cpus = 1
+            vb.name = "redis"
+        end
+
+        db.vm.synced_folder ".", "/vagrant", type: "rsync",
+        rsync__verbose: true,
+        rsync__exclude: ['.git*', 'node_modules*','*.log','*.box','Vagrantfile', '*.md']
+
+        db.vm.provision "shell" do |s|
+            s.path = "prepare_redis.sh"
+            s.args = ["192.168.33.103"]
+        end
+    end
+end
